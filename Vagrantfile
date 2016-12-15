@@ -3,7 +3,7 @@
 
 require 'yaml'
 
-ip = '192.168.50.5' # pick any local IP
+PRIVIATE_IP = '192.168.50.5' # pick any local IP
 cpus = 1
 memory = 1024 # in MB
 
@@ -43,7 +43,7 @@ Vagrant.configure('2') do |config|
   config.ssh.shell = %{bash -c 'BASH_ENV=/etc/profile exec bash'}
 
   # Required for NFS to work
-  config.vm.network :private_network, ip: ip, hostsupdater: 'skip'
+  config.vm.network :private_network, ip: PRIVATE_IP, hostsupdater: 'skip'
 
   site_hosts = wordpress_sites.flat_map { |(_name, site)| site['site_hosts'] }
 
@@ -58,12 +58,14 @@ Vagrant.configure('2') do |config|
 
   redirects = site_hosts.flat_map { |host| host['redirects'] }.compact
 
-  if Vagrant.has_plugin? 'vagrant-hostmanager'
-    config.hostmanager.enabled = true
-    config.hostmanager.manage_host = true
-    config.hostmanager.aliases = hostnames + redirects
+  if Vagrant.has_plugin? 'landrush'
+    config.landrush.enabled = true
+    config.landrush.tld = config.vm.hostname
+    hostnames.each do |host|
+      config.landrush.host host, PRIVATE_IP
+    end
   else
-    fail_with_message "vagrant-hostmanager missing, please install the plugin with this command:\nvagrant plugin install vagrant-hostmanager"
+    fail_with_message "vagrant plugin landrush missing, please install the plugin with this command:\nvagrant plugin install landrush"
   end
 
   if Vagrant::Util::Platform.windows? and !Vagrant.has_plugin? 'vagrant-winnfsd'
