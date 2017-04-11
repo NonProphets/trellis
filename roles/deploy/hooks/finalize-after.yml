@@ -1,12 +1,4 @@
 ---
-- name: WordPress Installed?
-  command: wp core is-installed {{ project.multisite.enabled | default(false) | ternary('--network', '') }}
-  args:
-    chdir: "{{ deploy_helper.current_path }}"
-  register: wp_installed
-  changed_when: false
-  failed_when: wp_installed.stderr != ""
-
 - block:
   - name: Update WP database
     command: wp core update-db

@@ -5,7 +5,7 @@
 server {
   {% block server_id -%}
   listen {{ ssl_enabled | ternary('443 ssl http2', '80') }};
-  server_name  {% for host in site_hosts_canonical %}{{ host }} {% if item.value.multisite.subdomains | default(false) %}*.{{ host }} {% endif %}{% endfor %};
+  server_name {{ site_hosts_canonical | join(' ') }}{% if item.value.multisite.subdomains | default(false) %} *.{{ site_hosts_canonical | map('regex_replace', '^www\.', '') | join(' *.') }}{% endif %};
   {% endblock %}
 
   {% block logs -%}
@@ -29,6 +29,23 @@ server {
   {% endif -%}
   {% endblock -%}
 
+  {% block cache_conditions -%}
+  {% if item.value.cache is defined and item.value.cache.enabled | default(false) -%}
+  # Fastcgi cache conditions
+  set $skip_cache 0;
+  if ($query_string != "") {
+    set $skip_cache 1;
+  }
+  if ($request_uri ~* "{{ item.value.cache.skip_cache_uri | default(nginx_skip_cache_uri) }}") {
+    set $skip_cache 1;
+  }
+  if ($http_cookie ~* "{{ item.value.cache.skip_cache_cookie | default(nginx_skip_cache_cookie) }}") {
+    set $skip_cache 1;
+  }
+
+  {% endif -%}
+  {% endblock -%}
+  
   {% block multisite_rewrites -%}
   {% if item.value.multisite.enabled | default(false) -%}
   # Multisite rewrites
@@ -78,23 +95,6 @@ server {
   {% block acme_challenge -%}
   include acme-challenge-location.conf;
 
-  {% endblock -%}
-
-  {% block cache_conditions -%}
-  {% if item.value.cache is defined and item.value.cache.enabled | default(false) -%}
-  # Fastcgi cache conditions
-  set $skip_cache 0;
-  if ($query_string != "") {
-    set $skip_cache 1;
-  }
-  if ($request_uri ~* "{{ item.value.cache.skip_cache_uri | default(nginx_skip_cache_uri) }}") {
-    set $skip_cache 1;
-  }
-  if ($http_cookie ~* "{{ item.value.cache.skip_cache_cookie | default(nginx_skip_cache_cookie) }}") {
-    set $skip_cache 1;
-  }
-
-  {% endif -%}
   {% endblock -%}
 
   {% block includes_d -%}
@@ -157,7 +157,7 @@ server {
 # Redirect to https
 server {
   listen 80;
-  server_name {{ site_hosts | join(' ') }}{% if item.value.multisite.subdomains | default(false) %} *.{{ site_hosts_canonical | join(' *.') }}{% endif %};
+  server_name {{ site_hosts | join(' ') }}{% if item.value.multisite.subdomains | default(false) %} *.{{ site_hosts_canonical | map('regex_replace', '^www\.', '') | join(' *.') }}{% endif %};
 
   {{ self.acme_challenge() -}}
 
